@@ -86,7 +86,6 @@ const OBJECT_TYPES = [
     generate: v => buildCalculatedColumn(v),
   },
   {
-  {
     id:'date_table', label:'Date Table', icon:'📅', color:'#0891B2',
     badge:'#ECFEFF', badgeText:'#155E75', desc:'Calculated Date dimension table',
     group:'Tables',
