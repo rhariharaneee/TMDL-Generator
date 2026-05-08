@@ -40,7 +40,7 @@ input,textarea,select{font:inherit}
 .header{
   position:fixed;top:0;left:0;right:0;z-index:200;
   height:var(--header-h);
-  display:grid;grid-template-columns:auto 1fr auto;align-items:center;
+  display:grid;grid-template-columns:auto auto;align-items:center;justify-content:space-between;
   gap:12px;padding:0 20px;
   background:var(--c-surface);
   border-bottom:1px solid var(--c-border);

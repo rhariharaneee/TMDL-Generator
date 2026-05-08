@@ -594,144 +594,52 @@ function buildPerspective(v){
 }
 
 // ── State ──────────────────────────────────────────────────────
-let tabs = [];
-let activeTabId = null;
+let state = { typeId: 'measure', values: {} };
 
-// ── Tab management ─────────────────────────────────────────────
-function createTab(typeId, label){
+function initValues(typeId){
   const type = OBJECT_TYPES.find(o=>o.id===typeId);
-  if(!type)return null;
-  const id = 'tab_'+Date.now()+'_'+Math.random().toString(36).slice(2);
-  const tab = {id, typeId, label:label||type.label, values:{}};
+  const values = {};
   type.fields.forEach(f=>{
-    if(f.def!==undefined) tab.values[f.id]=f.def;
-    else if(f.type==='toggle') tab.values[f.id]=false;
-    else tab.values[f.id]='';
+    if(f.def!==undefined) values[f.id]=f.def;
+    else if(f.type==='toggle') values[f.id]=false;
+    else values[f.id]='';
   });
-  tabs.push(tab);
-  activeTabId=id;
-  renderTabs();
-  renderCanvas();
-  return id;
-}
-function closeTab(id){
-  const idx=tabs.findIndex(t=>t.id===id);
-  tabs.splice(idx,1);
-  if(activeTabId===id) activeTabId=tabs.length?tabs[Math.max(0,idx-1)].id:null;
-  renderTabs();
-  renderCanvas();
-}
-function switchTab(id){
-  activeTabId=id;
-  renderTabs();
-  renderCanvas();
-}
-
-// ── Render tabs in header ─────────────────────────────────────
-function renderTabs(){
-  const list=document.getElementById('tabsList');
-  list.innerHTML=tabs.map(tab=>{
-    const type=OBJECT_TYPES.find(o=>o.id===tab.typeId)||{};
-    return `<div class="tab-item ${tab.id===activeTabId?'active':''}" onclick="switchTab('${tab.id}')">
-      <div class="tab-dot" style="background:${type.color||'#ccc'}"></div>
-      <span class="tab-label">${esc(tab.label)}</span>
-      <span class="tab-close" onclick="event.stopPropagation();closeTab('${tab.id}')">
-        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </span>
-    </div>`;
-  }).join('');
+  return values;
 }
 
 // ── Render main canvas ─────────────────────────────────────────
 function renderCanvas(){
-  const canvas=document.getElementById('canvas');
-  if(!tabs.length||!activeTabId){
-    canvas.innerHTML=renderWelcome();
-    return;
-  }
-  const tab=tabs.find(t=>t.id===activeTabId);
-  if(!tab){canvas.innerHTML=renderWelcome();return;}
-  const type=OBJECT_TYPES.find(o=>o.id===tab.typeId);
-  canvas.innerHTML=renderSplitPane(tab,type);
-  updateCodePreview(tab,type);
-}
-
-// ── Welcome screen ────────────────────────────────────────────
-function renderWelcome(){
-  // Group types by group
-  const groups={};
-  OBJECT_TYPES.forEach(t=>{const g=t.group||'Other';if(!groups[g])groups[g]=[];groups[g].push(t);});
-  let html=`<div class="welcome-screen">
-    <div class="welcome-icon">
-      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#E85D26" stroke-width="1.7">
-        <rect x="3" y="3" width="18" height="18" rx="3"/>
-        <line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/>
-      </svg>
-    </div>
-    <div>
-      <div class="welcome-title">TMDL Generator</div>
-      <div class="welcome-sub">Select an object type below to start generating production-ready TMDL templates. Fill in the properties and the script updates live.</div>
-    </div>
-    <div style="width:100%;max-width:860px;display:flex;flex-direction:column;gap:18px">`;
-  Object.entries(groups).forEach(([group,items])=>{
-    html+=`<div>
-      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px;padding-left:2px">${group}</div>
-      <div class="welcome-grid">`;
-    items.forEach(obj=>{
-      html+=`<div class="welcome-card" onclick="createTab('${obj.id}',null)">
-        <div class="wc-icon">${obj.icon}</div>
-        <div class="wc-name">${obj.label}</div>
-        <div class="wc-desc">${obj.desc}</div>
-      </div>`;
-    });
-    html+=`</div></div>`;
-  });
-  html+=`</div></div>`;
-  return html;
+  const type = OBJECT_TYPES.find(o=>o.id===state.typeId);
+  const canvas = document.getElementById('canvas');
+  canvas.innerHTML = renderSplitPane(type);
+  updateCodePreview();
 }
 
 // ── Split pane ────────────────────────────────────────────────
-function renderSplitPane(tab,type){
-  // Build object type dropdown options
-  const options=OBJECT_TYPES.map(o=>`<option value="${o.id}" ${o.id===tab.typeId?'selected':''}>${o.icon} ${o.label}</option>`).join('');
+function renderSplitPane(type){
+  const options = OBJECT_TYPES.map(o=>`<option value="${o.id}" ${o.id===state.typeId?'selected':''}>${o.icon} ${o.label}</option>`).join('');
+  const badgeStyle = `background:${type.badge};color:${type.badgeText}`;
+  const fieldsHtml = type.fields.map(f=>renderField(f,state.values)).join('');
 
-  // Badge style
-  const badgeStyle=`background:${type.badge};color:${type.badgeText}`;
-
-  // Build fields
-  const fieldsHtml=type.fields.map(f=>renderField(f,tab.values)).join('');
-
-  return `<div class="split-pane" id="sp_${tab.id}">
+  return `<div class="split-pane" id="sp_main">
 
     <!-- LEFT: dropdown + form -->
     <div class="left-panel">
       <div class="left-panel-top">
-
-        <!-- Object type dropdown row -->
         <div class="obj-type-row">
           <span class="obj-type-label">Object Type</span>
           <div class="select-wrapper">
-            <select class="obj-type-select" onchange="onTypeChange(this,'${tab.id}')">
+            <select class="obj-type-select" onchange="onTypeChange(this)">
               ${options}
             </select>
           </div>
-          <span class="type-badge" style="${badgeStyle}" id="badge_${tab.id}">${type.icon} ${type.label}</span>
-        </div>
-
-        <!-- Tab name row -->
-        <div class="tab-name-row">
-          <input type="text" class="tab-name-input" value="${esc(tab.label)}"
-            placeholder="Template name..." id="tabname_${tab.id}"
-            oninput="onTabRename(this,'${tab.id}')" />
-          <button class="btn-sm" onclick="duplicateTab('${tab.id}')" title="Duplicate tab">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-          </button>
+          <span class="type-badge" style="${badgeStyle}" id="badge_main">${type.icon} ${type.label}</span>
         </div>
       </div>
 
       <!-- Fields -->
       <div class="left-panel-fields">
-        <div class="form-grid" id="fields_${tab.id}">
+        <div class="form-grid" id="fields_main">
           ${fieldsHtml}
         </div>
         <div style="height:24px"></div>
@@ -742,15 +650,15 @@ function renderSplitPane(tab,type){
     <div class="right-panel">
       <div class="right-panel-top">
         <div class="rpt-info">
-          <div class="rpt-title">${esc(tab.label)} <span style="font-weight:400;color:var(--c-muted)">— ${type.desc}</span></div>
-          <div class="rpt-sub">Live TMDL · compatibility level ${tab.values.compat||'1567'}</div>
+          <div class="rpt-title" id="rpt_title">${type.icon} ${esc(type.label)} <span style="font-weight:400;color:var(--c-muted)">— ${type.desc.split('.')[0]}.</span></div>
+          <div class="rpt-sub">Live TMDL preview</div>
         </div>
         <div class="rpt-actions">
-          <button class="btn-secondary" onclick="copyCode('${tab.id}')" style="font-size:12px;padding:7px 13px">
+          <button class="btn-secondary" onclick="copyCode()" style="font-size:12px;padding:7px 13px">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             Copy
           </button>
-          <button class="btn-primary" onclick="saveTabFile('${tab.id}')" style="font-size:12px;padding:7px 13px">
+          <button class="btn-primary" onclick="saveFile()" style="font-size:12px;padding:7px 13px">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             Save .tmdl
           </button>
@@ -765,7 +673,7 @@ function renderSplitPane(tab,type){
             TMDL &mdash; ${type.label}
           </span>
         </div>
-        <div class="code-content" id="code_${tab.id}"></div>
+        <div class="code-content" id="code_main"></div>
       </div>
 
       <div class="info-strip">
@@ -812,105 +720,66 @@ function renderField(f,values){
     ${hint}</div>`;
 }
 
-// ── Field change handler ──────────────────────────────────────
+// ── Change handlers ───────────────────────────────────────────
 function onFieldChange(el){
-  const tab=tabs.find(t=>t.id===activeTabId);if(!tab)return;
-  tab.values[el.dataset.field]=el.type==='checkbox'?el.checked:el.value;
-  const type=OBJECT_TYPES.find(o=>o.id===tab.typeId);
-  updateCodePreview(tab,type);
-  // Update right panel subtitle compat level
-  const sub=document.querySelector(`#sp_${tab.id} .rpt-sub`);
-  if(sub)sub.textContent=`Live TMDL · compatibility level ${tab.values.compat||'1567'}`;
+  state.values[el.dataset.field] = el.type==='checkbox' ? el.checked : el.value;
+  updateCodePreview();
 }
 
-function onTypeChange(el, tabId){
-  const tab=tabs.find(t=>t.id===tabId);if(!tab)return;
-  const newTypeId=el.value;
-  const newType=OBJECT_TYPES.find(o=>o.id===newTypeId);if(!newType)return;
-  tab.typeId=newTypeId;
-  tab.values={};
-  newType.fields.forEach(f=>{
-    if(f.def!==undefined) tab.values[f.id]=f.def;
-    else if(f.type==='toggle') tab.values[f.id]=false;
-    else tab.values[f.id]='';
-  });
-  // Keep user's label
-  renderTabs();
+function onTypeChange(el){
+  state.typeId = el.value;
+  state.values = initValues(el.value);
   renderCanvas();
 }
 
-function onTabRename(el, tabId){
-  const tab=tabs.find(t=>t.id===tabId);if(!tab)return;
-  tab.label=el.value;
-  renderTabs();
-  // update right panel title
-  const rptTitle=document.querySelector(`#sp_${tabId} .rpt-title`);
-  const type=OBJECT_TYPES.find(o=>o.id===tab.typeId);
-  if(rptTitle)rptTitle.innerHTML=`${esc(tab.label)} <span style="font-weight:400;color:var(--c-muted)">— ${type.desc}</span>`;
-}
-
-function updateCodePreview(tab,type){
-  const el=document.getElementById(`code_${tab.id}`);if(!el)return;
+function updateCodePreview(){
+  const el = document.getElementById('code_main');
+  if(!el) return;
+  const type = OBJECT_TYPES.find(o=>o.id===state.typeId);
   try{
-    const body=type.generate(tab.values);
-    el.innerHTML=`<span class="tk-kw">createOrReplace</span>\n\n`+body;
-  }
-  catch(e){el.textContent='// Error: '+e.message;}
+    el.innerHTML = `<span class="tk-kw">createOrReplace</span>\n\n` + type.generate(state.values);
+  } catch(e){ el.textContent = '// Error: '+e.message; }
 }
 
 // ── Actions ───────────────────────────────────────────────────
-function copyCode(tabId){
-  const el=document.getElementById(`code_${tabId}`);if(!el)return;
-  const text=stripHTML(el.innerHTML);
-  navigator.clipboard.writeText(text).then(()=>showToast('Copied to clipboard','success'));
+function copyCode(){
+  const el = document.getElementById('code_main');
+  if(!el) return;
+  navigator.clipboard.writeText(stripHTML(el.innerHTML))
+    .then(()=>showToast('Copied to clipboard','success'));
 }
-function saveTabFile(tabId){
-  const tab=tabs.find(t=>t.id===tabId);if(!tab)return;
-  const el=document.getElementById(`code_${tabId}`);if(!el)return;
-  const text=stripHTML(el.innerHTML);
-  const fname=tab.label.replace(/[^a-zA-Z0-9_\-\s]/g,'').replace(/\s+/g,'_')+'.tmdl';
-  downloadFile(text,fname);
-  showToast('Saved '+fname,'success');
+
+function saveFile(){
+  const el = document.getElementById('code_main');
+  if(!el) return;
+  const type = OBJECT_TYPES.find(o=>o.id===state.typeId);
+  const text = stripHTML(el.innerHTML);
+  const fname = type.label.replace(/[^a-zA-Z0-9_\-\s]/g,'').replace(/\s+/g,'_').toLowerCase()+'.tmdl';
+  downloadFile(text, fname);
+  showToast('Saved '+fname, 'success');
 }
-function duplicateTab(tabId){
-  const tab=tabs.find(t=>t.id===tabId);if(!tab)return;
-  const newId=createTab(tab.typeId,tab.label+' (Copy)');
-  const newTab=tabs.find(t=>t.id===newId);
-  newTab.values=JSON.parse(JSON.stringify(tab.values));
-  activeTabId=newId;
-  renderTabs();renderCanvas();
-}
-function exportAll(){
-  if(!tabs.length){showToast('No tabs to export','error');return;}
-  let combined=`// TMDL Generator\n// Exported: ${new Date().toISOString()}\n\n`;
-  tabs.forEach(tab=>{
-    const type=OBJECT_TYPES.find(o=>o.id===tab.typeId);
-    const el=document.getElementById(`code_${tab.id}`);
-    const text=el?stripHTML(el.innerHTML):stripHTML(type.generate(tab.values));
-    combined+=`// ─── ${tab.label} (${type.label}) ───\n${text}\n\n`;
-  });
-  downloadFile(combined,'model_export.tmdl');
-  showToast(`Exported ${tabs.length} template(s)`,'success');
-}
+
 function downloadFile(content,filename){
-  const blob=new Blob([content],{type:'text/plain;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=filename;
-  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  const blob = new Blob([content],{type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
 // ── Toast ─────────────────────────────────────────────────────
 let toastTimer=null;
 function showToast(msg,type=''){
   const el=document.getElementById('toast');
-  el.textContent=msg;el.className=`toast show ${type}`;
+  el.textContent=msg; el.className=`toast show ${type}`;
   clearTimeout(toastTimer);
   toastTimer=setTimeout(()=>el.classList.remove('show'),2800);
 }
 
 // ── Bootstrap ─────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('btnAddTab').addEventListener('click',()=>createTab('measure',null));
-  // Start with a measure tab
-  createTab('measure','Sales Amount');
+  state.values = initValues('measure');
+  renderCanvas();
 });
+
