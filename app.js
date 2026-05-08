@@ -655,7 +655,7 @@ function renderWelcome(){
     <div style="width:100%;max-width:860px;display:flex;flex-direction:column;gap:18px">`;
   Object.entries(groups).forEach(([group,items])=>{
     html+=`<div>
-      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ta-muted);margin-bottom:10px;padding-left:2px">${group}</div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--c-muted);margin-bottom:10px;padding-left:2px">${group}</div>
       <div class="welcome-grid">`;
     items.forEach(obj=>{
       html+=`<div class="welcome-card" onclick="createTab('${obj.id}',null)">
@@ -722,7 +722,7 @@ function renderSplitPane(tab,type){
     <div class="right-panel">
       <div class="right-panel-top">
         <div class="rpt-info">
-          <div class="rpt-title">${esc(tab.label)} <span style="font-weight:400;color:var(--ta-muted)">— ${type.desc}</span></div>
+          <div class="rpt-title">${esc(tab.label)} <span style="font-weight:400;color:var(--c-muted)">— ${type.desc}</span></div>
           <div class="rpt-sub">Live TMDL · compatibility level ${tab.values.compat||'1567'}</div>
         </div>
         <div class="rpt-actions">
@@ -826,7 +826,7 @@ function onTabRename(el, tabId){
   // update right panel title
   const rptTitle=document.querySelector(`#sp_${tabId} .rpt-title`);
   const type=OBJECT_TYPES.find(o=>o.id===tab.typeId);
-  if(rptTitle)rptTitle.innerHTML=`${esc(tab.label)} <span style="font-weight:400;color:var(--ta-muted)">— ${type.desc}</span>`;
+  if(rptTitle)rptTitle.innerHTML=`${esc(tab.label)} <span style="font-weight:400;color:var(--c-muted)">— ${type.desc}</span>`;
 }
 
 function updateCodePreview(tab,type){
