@@ -27,10 +27,11 @@ const OBJECT_TYPES = [
       {id:'sourceTable', label:'Source Table / Object',    type:'text',    placeholder:'dbo.FactSales'},
       {id:'mode',        label:'Storage Mode',             type:'select',  options:['import','directQuery','dual'], def:'import'},
       {id:'connector',   label:'Data Source Connector',    type:'select',  options:['SQL Server','Azure SQL','Azure Synapse','Databricks','PostgreSQL','MySQL','Oracle','Snowflake','BigQuery','Azure Data Lake'], def:'SQL Server'},
-      {id:'server',      label:'Server / Host',            type:'text',    placeholder:'localhost'},
+      {id:'server',      label:'Server / Host (or Parameter Name)',    type:'text',    placeholder:'Databricks_Server'},
       {id:'database',    label:'Database / Catalog',       type:'text',    placeholder:'AdventureWorksDW'},
       {id:'schema',      label:'Schema / Namespace',       type:'text',    placeholder:'dbo'},
-      {id:'httpPath',    label:'HTTP Path (Databricks)',    type:'text',    placeholder:'/sql/1.0/warehouses/abc123'},
+      {id:'httpPath',    label:'HTTP Path Parameter (Databricks)',    type:'text',    placeholder:'Databricks_Path'},
+      {id:'queryGroup',  label:'Query Group',                          type:'text',    placeholder:'Main Queries'},
       {id:'isHidden',    label:'Hidden',                   type:'toggle'},
       {id:'desc',        label:'Description',              type:'textarea',placeholder:'Contains transactional sales data'},
     ],
@@ -256,7 +257,8 @@ function buildTable(v){
   const srv=v.server||'localhost';
   const db=v.database||'AdventureWorksDW';
   const schema=v.schema||'dbo';
-  const httpPath=v.httpPath||'/sql/1.0/warehouses/abc123';
+  const httpPath=v.httpPath||'Databricks_Path';
+  const queryGroup=v.queryGroup||'';
   const connector=v.connector||'SQL Server';
   const mode=v.mode||'import';
   const p=src.split('.');
@@ -268,8 +270,9 @@ function buildTable(v){
     const host=connector==='Azure SQL'?`${srv}.database.windows.net`:connector==='Azure Synapse'?`${srv}.sql.azuresynapse.net`:srv;
     mQuery=`let\n                Source = Sql.Database("${esc(host)}", "${esc(db)}"),\n                Schema = Source{[Name="${esc(schm)}"]}[Data],\n                Navigation = Schema{[Name="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
   } else if(connector==='Databricks'){
-    const cat=p.length>2?p[0]:db; const sch=p.length>2?p[1]:(p.length>1?p[0]:schema); const tbl=p[p.length-1];
-    mQuery=`let\n                Source = Databricks.Catalog(\n                    "https://${esc(srv)}",\n                    "${esc(httpPath)}",\n                    [Catalog="${esc(cat)}"]\n                ),\n                Schema = Source{[Name="${esc(sch)}"]}[Data],\n                Navigation = Schema{[Name="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+    const cat=db||'salesanalytics'; const sch=schema||'dbo'; const tbl=p[p.length-1]||tName;
+    const srvParam=srv||'Databricks_Server'; const pathParam=httpPath||'Databricks_Path';
+    mQuery=`let\n                Source = Databricks.Catalogs(${esc(srvParam)}, ${esc(pathParam)}, [Catalog=null, Database=null, EnableAutomaticProxyDiscovery=null]),\n                CallCatalog = Source{[Name="${esc(cat)}",Kind="Database"]}[Data],\n                CallSchema = CallCatalog{[Name="${esc(sch)}",Kind="Schema"]}[Data],\n                CallTable = CallSchema{[Name="${esc(tbl)}",Kind="Table"]}[Data]\n            \n            in\n                CallTable`;
   } else if(connector==='PostgreSQL'){
     const schm=p.length>1?p[0]:schema; const tbl=p.length>1?p[1]:src;
     mQuery=`let\n                Source = PostgreSQL.Database("${esc(srv)}", "${esc(db)}"),\n                Navigation = Source{[Schema="${esc(schm)}",Item="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
@@ -298,8 +301,13 @@ function buildTable(v){
   if(v.isHidden)o+=`    <span class="tk-prop">isHidden</span>\n`;
   o+=`\n    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(pName))}</span> <span class="tk-eq">=</span> <span class="tk-str">m</span>\n`;
   o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
+  if(connector==='Databricks'&&queryGroup)o+=`        <span class="tk-prop">queryGroup</span><span class="tk-eq">:</span> <span class="tk-str">'${esc(queryGroup)}'</span>\n`;
   o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span>\n`;
   o+=`            <span class="tk-dax">${mQuery}</span>\n`;
+  if(connector==='Databricks'){
+    o+=`\n    <span class="tk-prop">annotation</span> <span class="tk-obj">PBI_NavigationStepName</span> <span class="tk-eq">=</span> <span class="tk-str">Navigation</span>\n`;
+    o+=`\n    <span class="tk-prop">annotation</span> <span class="tk-obj">PBI_ResultType</span> <span class="tk-eq">=</span> <span class="tk-str">Table</span>\n`;
+  }
   o+=`\n    <span class="tk-cmt">/// Add columns and measures below</span>\n`;
   return o.trimEnd();
 }
