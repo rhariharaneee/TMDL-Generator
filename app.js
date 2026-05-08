@@ -859,7 +859,7 @@ function duplicateTab(tabId){
 }
 function exportAll(){
   if(!tabs.length){showToast('No tabs to export','error');return;}
-  let combined=`// TMDL Generator – Tiger Analytics\n// Exported: ${new Date().toISOString()}\n\n`;
+  let combined=`// TMDL Generator\n// Exported: ${new Date().toISOString()}\n\n`;
   tabs.forEach(tab=>{
     const type=OBJECT_TYPES.find(o=>o.id===tab.typeId);
     const el=document.getElementById(`code_${tab.id}`);
