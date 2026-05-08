@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TMDL Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header class="header">
+    <!-- Logo -->
+    <div class="header-left">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+            <rect width="34" height="34" rx="9" fill="#4F46E5"/>
+            <path d="M10 12h14M10 17h10M10 22h12" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+            <path d="M22 20l4 4-4 4" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-brand">TMDL Generator</span>
+          <span class="logo-product">Tabular Model Definition Language</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs (center) -->
+    <div class="header-center">
+      <div class="tabs-list" id="tabsList"></div>
+      <button class="tab-add-btn" id="btnAddTab" title="New template">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        New
+      </button>
+    </div>
+
+    <!-- Actions (right) -->
+    <div class="header-right">
+      <a href="https://learn.microsoft.com/en-us/analysis-services/tmdl/tmdl-overview" target="_blank" class="header-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Docs
+      </a>
+
+    </div>
+  </header>
+
+  <!-- ── Main canvas (full width, no sidebar) ──────────────────── -->
+  <main class="canvas" id="canvas">
+    <!-- injected by JS -->
+  </main>
+
+  <!-- ── Toast ─────────────────────────────────────────────────── -->
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
