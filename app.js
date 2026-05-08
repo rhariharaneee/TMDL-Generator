@@ -7,7 +7,7 @@
 const OBJECT_TYPES = [
   {
     id:'model', label:'Model', icon:'📐', color:'#0EA5E9',
-    badge:'#F0F9FF', badgeText:'#0369A1', desc:'Model-level configuration',
+    badge:'#F0F9FF', badgeText:'#0369A1', desc:'Defines top-level model properties: culture, data source version, and processing behavior. Required as the root file in every TMDL folder structure.',
     group:'Model',
     fields:[
       {id:'culture',            label:'Culture',                      type:'select', options:['en-US','en-GB','fr-FR','de-DE','ja-JP','zh-CN','pt-BR','es-ES'], def:'en-US'},
@@ -20,22 +20,25 @@ const OBJECT_TYPES = [
   },
   {
     id:'table', label:'Table', icon:'📊', color:'#10B981',
-    badge:'#ECFDF5', badgeText:'#065F46', desc:'Fact or dimension table',
+    badge:'#ECFDF5', badgeText:'#065F46', desc:'Declares a physical table with its partition query and storage mode. Each table file contains columns, measures, and hierarchies scoped to that table.',
     group:'Tables',
     fields:[
-      {id:'tableName',   label:'Table Name',         type:'text',    placeholder:'Sales', required:true},
-      {id:'sourceTable', label:'Source Table',        type:'text',    placeholder:'dbo.FactSales'},
-      {id:'mode',        label:'Storage Mode',        type:'select',  options:['import','directQuery','dualMode','push']},
-      {id:'server',      label:'Server Parameter',    type:'text',    placeholder:'Server'},
-      {id:'database',    label:'Database Parameter',  type:'text',    placeholder:'Database'},
-      {id:'isHidden',    label:'Hidden',              type:'toggle'},
-      {id:'desc',        label:'Description',         type:'textarea',placeholder:'Contains transactional sales data'},
+      {id:'tableName',   label:'Table Name',              type:'text',    placeholder:'Sales', required:true},
+      {id:'sourceTable', label:'Source Table / Object',    type:'text',    placeholder:'dbo.FactSales'},
+      {id:'mode',        label:'Storage Mode',             type:'select',  options:['import','directQuery','dual'], def:'import'},
+      {id:'connector',   label:'Data Source Connector',    type:'select',  options:['SQL Server','Azure SQL','Azure Synapse','Databricks','PostgreSQL','MySQL','Oracle','Snowflake','BigQuery','Azure Data Lake'], def:'SQL Server'},
+      {id:'server',      label:'Server / Host',            type:'text',    placeholder:'localhost'},
+      {id:'database',    label:'Database / Catalog',       type:'text',    placeholder:'AdventureWorksDW'},
+      {id:'schema',      label:'Schema / Namespace',       type:'text',    placeholder:'dbo'},
+      {id:'httpPath',    label:'HTTP Path (Databricks)',    type:'text',    placeholder:'/sql/1.0/warehouses/abc123'},
+      {id:'isHidden',    label:'Hidden',                   type:'toggle'},
+      {id:'desc',        label:'Description',              type:'textarea',placeholder:'Contains transactional sales data'},
     ],
     generate: v => buildTable(v),
   },
   {
     id:'measure', label:'Measure', icon:'📏', color:'#F59E0B',
-    badge:'#FFFBEB', badgeText:'#92400E', desc:'DAX calculated measure',
+    badge:'#FFFBEB', badgeText:'#92400E', desc:'A named DAX calculation evaluated in filter context at query time. Stored in the parent table file; supports format strings and display folders.',
     group:'Tables',
     fields:[
       {id:'tableName',    label:'Parent Table',    type:'text',    placeholder:'Sales', required:true},
@@ -45,14 +48,13 @@ const OBJECT_TYPES = [
       {id:'customFormat', label:'Custom Format (if Custom selected)', type:'text', placeholder:'#,##0.00 "units"'},
       {id:'displayFolder',label:'Display Folder',  type:'text',    placeholder:'Key Measures'},
       {id:'isHidden',     label:'Hidden',          type:'toggle'},
-      {id:'kpi',          label:'Add KPI Stub',    type:'toggle'},
       {id:'desc',         label:'Description',     type:'textarea',placeholder:'Total sales revenue'},
     ],
     generate: v => buildMeasure(v),
   },
   {
     id:'column', label:'Column', icon:'🏛️', color:'#14B8A6',
-    badge:'#F0FDFA', badgeText:'#134E4A', desc:'Table column definition',
+    badge:'#F0FDFA', badgeText:'#134E4A', desc:'A physical column sourced from the data source via its sourceColumn mapping. Supports data type, format string, sort-by column, display folder, and summarization.',
     group:'Tables',
     fields:[
       {id:'tableName',   label:'Parent Table',    type:'text',   placeholder:'Sales', required:true},
@@ -71,7 +73,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'calc_column', label:'Calc. Column', icon:'🔢', color:'#8B5CF6',
-    badge:'#F5F3FF', badgeText:'#5B21B6', desc:'DAX calculated column',
+    badge:'#F5F3FF', badgeText:'#5B21B6', desc:'A DAX expression evaluated row-by-row during refresh and stored in the model in memory. Supports all standard column properties plus a full DAX expression.',
     group:'Tables',
     fields:[
       {id:'tableName',    label:'Parent Table',   type:'text',    placeholder:'Sales', required:true},
@@ -87,7 +89,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'date_table', label:'Date Table', icon:'📅', color:'#0891B2',
-    badge:'#ECFEFF', badgeText:'#155E75', desc:'Calculated Date dimension table',
+    badge:'#ECFEFF', badgeText:'#155E75', desc:'A pre-built calculated Date dimension with 11 standard calendar columns and an optional Date Hierarchy. Uses CALENDAR() as the partition source — no external query required.',
     group:'Tables',
     fields:[
       {id:'tableName',  label:'Table Name',          type:'text',   placeholder:'Date', required:true},
@@ -102,7 +104,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'hierarchy', label:'Hierarchy', icon:'📈', color:'#F97316',
-    badge:'#FFF7ED', badgeText:'#9A3412', desc:'User-defined hierarchy',
+    badge:'#FFF7ED', badgeText:'#9A3412', desc:'A named drill-down path through two or more columns in the same table. Each level references an existing column and is assigned an ordinal position.',
     group:'Tables',
     fields:[
       {id:'tableName',    label:'Parent Table',   type:'text',    placeholder:'Date', required:true},
@@ -116,7 +118,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'relationship', label:'Relationship', icon:'🔗', color:'#64748B',
-    badge:'#F8FAFC', badgeText:'#1E293B', desc:'Table relationship',
+    badge:'#F8FAFC', badgeText:'#1E293B', desc:'Defines a join between two columns across tables with cardinality and cross-filter direction. Inactive relationships require USERELATIONSHIP() in DAX to activate.',
     group:'Model',
     fields:[
       {id:'relId',       label:'Relationship GUID', type:'text',   placeholder:'auto-generated', hint:'Leave blank to auto-generate'},
@@ -132,7 +134,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'role', label:'Role', icon:'🔒', color:'#DC2626',
-    badge:'#FEF2F2', badgeText:'#991B1B', desc:'Security role with RLS',
+    badge:'#FEF2F2', badgeText:'#991B1B', desc:'A security role with model-level permission and optional row-level security (RLS) filters. tablePermission restricts which rows each role member can see.',
     group:'Security',
     fields:[
       {id:'roleName',    label:'Role Name',         type:'text',    placeholder:'Region Managers', required:true},
@@ -145,7 +147,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'expression', label:'Expression', icon:'📝', color:'#06B6D4',
-    badge:'#ECFEFF', badgeText:'#164E63', desc:'Named M expression / parameter',
+    badge:'#ECFEFF', badgeText:'#164E63', desc:'A shared M expression or named parameter reused across multiple partition queries. Parameters expose values that can be changed without editing individual table partition sources.',
     group:'Model',
     fields:[
       {id:'exprName',    label:'Expression Name',    type:'text',   placeholder:'Databricks_Catalog', required:true},
@@ -161,7 +163,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'calc_group', label:'Calc. Group', icon:'⚙️', color:'#7C3AED',
-    badge:'#F5F3FF', badgeText:'#4C1D95', desc:'Calculation group & items',
+    badge:'#F5F3FF', badgeText:'#4C1D95', desc:'A calculation group applies a dynamic modifier to any measure in the model via SELECTEDMEASURE(). Each calculation item is a named DAX expression with an ordinal order.',
     group:'Tables',
     fields:[
       {id:'tableName',  label:'Table Name',   type:'text',    placeholder:'Time Intelligence', required:true},
@@ -175,7 +177,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'aggregation', label:'Aggregation', icon:'⚡', color:'#D97706',
-    badge:'#FFFBEB', badgeText:'#78350F', desc:'Aggregation table mapping',
+    badge:'#FFFBEB', badgeText:'#78350F', desc:'Maps an aggregation table back to a detail table so the engine can auto-redirect queries. The alternateOf block on each column defines which detail column it replaces.',
     group:'Model',
     fields:[
       {id:'aggTable',   label:'Aggregation Table Name',  type:'text', placeholder:'Sales_Agg', required:true},
@@ -191,7 +193,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'function', label:'Function', icon:'🧩', color:'#9333EA',
-    badge:'#FAF5FF', badgeText:'#6B21A8', desc:'DAX User Defined Function (UDF)',
+    badge:'#FAF5FF', badgeText:'#6B21A8', desc:'A reusable DAX User Defined Function (UDF) with typed input parameters and a declared return type. Called from measures and calculated columns just like any native DAX function.',
     group:'Model',
     fields:[
       {id:'funcName',   label:'Function Name',      type:'text',    placeholder:'AddTax', required:true},
@@ -204,7 +206,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'culture', label:'Culture', icon:'🌐', color:'#0284C7',
-    badge:'#F0F9FF', badgeText:'#0C4A6E', desc:'Linguistic schema / culture',
+    badge:'#F0F9FF', badgeText:'#0C4A6E', desc:'A linguistic schema that defines natural-language synonyms for Q&A and Copilot. Embeds a JSON linguisticMetadata block with entity names and synonym lists.',
     group:'Model',
     fields:[
       {id:'cultureName', label:'Culture Name',     type:'select', options:['en-US','en-GB','fr-FR','de-DE','nl-NL','es-ES','pt-BR','pt-PT','it-IT','ja-JP','zh-CN','zh-TW','ko-KR','ar-SA','ru-RU'], def:'en-US'},
@@ -217,7 +219,7 @@ const OBJECT_TYPES = [
   },
   {
     id:'perspective', label:'Perspective', icon:'🔭', color:'#0891B2',
-    badge:'#ECFEFF', badgeText:'#164E63', desc:'Model perspective / subset view',
+    badge:'#ECFEFF', badgeText:'#164E63', desc:'A named subset of tables, columns, and measures for a specific business audience. Does not affect security — it only controls visibility in client reporting tools.',
     group:'Model',
     fields:[
       {id:'perspName',  label:'Perspective Name',  type:'text',    placeholder:'Finance View', required:true},
@@ -251,17 +253,53 @@ function buildTable(v){
   const tName=v.tableName||'TableName';
   const pName=tName.replace(/\s+/g,'')+'-Partition';
   const src=v.sourceTable||'dbo.FactTable';
-  const srv=v.server||'Server';const db=v.database||'Database';
-  const p=src.split('.');const schm=p.length>1?p[0]:'dbo';const tbl=p.length>1?p[1]:src;
+  const srv=v.server||'localhost';
+  const db=v.database||'AdventureWorksDW';
+  const schema=v.schema||'dbo';
+  const httpPath=v.httpPath||'/sql/1.0/warehouses/abc123';
+  const connector=v.connector||'SQL Server';
+  const mode=v.mode||'import';
+  const p=src.split('.');
+
+  // Build connector-specific M query
+  let mQuery='';
+  if(connector==='SQL Server'||connector==='Azure SQL'||connector==='Azure Synapse'){
+    const schm=p.length>1?p[0]:schema; const tbl=p.length>1?p[1]:src;
+    const host=connector==='Azure SQL'?`${srv}.database.windows.net`:connector==='Azure Synapse'?`${srv}.sql.azuresynapse.net`:srv;
+    mQuery=`let\n                Source = Sql.Database("${esc(host)}", "${esc(db)}"),\n                Schema = Source{[Name="${esc(schm)}"]}[Data],\n                Navigation = Schema{[Name="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='Databricks'){
+    const cat=p.length>2?p[0]:db; const sch=p.length>2?p[1]:(p.length>1?p[0]:schema); const tbl=p[p.length-1];
+    mQuery=`let\n                Source = Databricks.Catalog(\n                    "https://${esc(srv)}",\n                    "${esc(httpPath)}",\n                    [Catalog="${esc(cat)}"]\n                ),\n                Schema = Source{[Name="${esc(sch)}"]}[Data],\n                Navigation = Schema{[Name="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='PostgreSQL'){
+    const schm=p.length>1?p[0]:schema; const tbl=p.length>1?p[1]:src;
+    mQuery=`let\n                Source = PostgreSQL.Database("${esc(srv)}", "${esc(db)}"),\n                Navigation = Source{[Schema="${esc(schm)}",Item="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='MySQL'){
+    const tbl=p[p.length-1];
+    mQuery=`let\n                Source = MySQL.Database("${esc(srv)}", "${esc(db)}"),\n                Navigation = Source{[Schema=null,Item="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='Oracle'){
+    const schm=p.length>1?p[0]:db; const tbl=p.length>1?p[1]:src;
+    mQuery=`let\n                Source = Oracle.Database("${esc(srv)}"),\n                Schema = Source{[Schema="${esc(schm)}"]}[Data],\n                Navigation = Schema{[Name="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='Snowflake'){
+    const sch=p.length>2?p[1]:(p.length>1?p[0]:schema); const tbl=p[p.length-1];
+    mQuery=`let\n                Source = Snowflake.Databases("${esc(srv)}"),\n                Database = Source{[Name="${esc(db)}",Kind="Database"]}[Data],\n                Schema = Database{[Name="${esc(sch)}",Kind="Schema"]}[Data],\n                Navigation = Schema{[Name="${esc(tbl)}",Kind="Table"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='BigQuery'){
+    const dataset=p.length>1?p[0]:schema; const tbl=p.length>1?p[1]:src;
+    mQuery=`let\n                Source = GoogleBigQuery.Database([BillingProject="${esc(srv)}"]),\n                Dataset = Source{[Name="${esc(dataset)}"]}[Data],\n                Navigation = Dataset{[Name="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  } else if(connector==='Azure Data Lake'){
+    mQuery=`let\n                Source = AzureStorage.DataLake(\n                    "https://${esc(srv)}.dfs.core.windows.net/${esc(db)}"\n                ),\n                Navigation = Source{[relativePath="${esc(src)}",MediaType="text/csv"]}[Content]\n            in\n                Navigation`;
+  } else {
+    const schm=p.length>1?p[0]:schema; const tbl=p.length>1?p[1]:src;
+    mQuery=`let\n                Source = Sql.Database("${esc(srv)}", "${esc(db)}"),\n                Navigation = Source{[Schema="${esc(schm)}",Item="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
+  }
+
   let o='';
   if(v.desc)o+=`<span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
   o+=`<span class="tk-kw">table</span> <span class="tk-obj">${esc(q(tName))}</span>\n`;
   if(v.isHidden)o+=`    <span class="tk-prop">isHidden</span>\n`;
-  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   o+=`\n    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(pName))}</span> <span class="tk-eq">=</span> <span class="tk-str">m</span>\n`;
-  o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${v.mode||'import'}</span>\n`;
+  o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
   o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span>\n`;
-  o+=`            <span class="tk-dax">let\n                Source = Sql.Database(${esc(srv)}, ${esc(db)}),\n                Navigation = Source{[Schema="${esc(schm)}",Item="${esc(tbl)}"]}[Data]\n            in\n                Navigation</span>\n`;
+  o+=`            <span class="tk-dax">${mQuery}</span>\n`;
   o+=`\n    <span class="tk-cmt">/// Add columns and measures below</span>\n`;
   return o.trimEnd();
 }
@@ -282,14 +320,6 @@ function buildMeasure(v){
   o+=`        <span class="tk-prop">formatString</span><span class="tk-eq">:</span> <span class="tk-str">${esc(fmt)}</span>\n`;
   if(v.displayFolder)o+=`        <span class="tk-prop">displayFolder</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.displayFolder)}</span>\n`;
   if(v.isHidden)o+=`        <span class="tk-prop">isHidden</span>\n`;
-  o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
-  if(v.kpi){
-    o+=`\n        <span class="tk-kw">kpi</span>\n`;
-    o+=`            <span class="tk-prop">targetExpression</span><span class="tk-eq">:</span> <span class="tk-str">1000000</span>\n`;
-    o+=`            <span class="tk-prop">statusGraphic</span><span class="tk-eq">:</span> <span class="tk-str">"Traffic Light - Single"</span>\n`;
-    o+=`            <span class="tk-prop">statusExpression</span> <span class="tk-eq">=</span>\n`;
-    o+=`                    <span class="tk-dax">var goal = KPI.Goal\nvar value = KPI.Value\nreturn IF(ISBLANK(value), BLANK(), IF(value >= goal, 1, IF(value >= goal * 0.85, 0, -1)))</span>\n`;
-  }
   return o.trimEnd();
 }
 function buildColumn(v){
@@ -306,7 +336,6 @@ function buildColumn(v){
   if(v.displayFolder)o+=`        <span class="tk-prop">displayFolder</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.displayFolder)}</span>\n`;
   if(v.isHidden)o+=`        <span class="tk-prop">isHidden</span>\n`;
   if(v.isKey)o+=`        <span class="tk-prop">isKey</span>\n`;
-  o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   o+=`\n        <span class="tk-prop">annotation</span> <span class="tk-obj">SummarizationSetBy</span> <span class="tk-eq">=</span> <span class="tk-str">Automatic</span>\n`;
   return o.trimEnd();
 }
@@ -326,7 +355,6 @@ function buildCalculatedColumn(v){
   if(v.formatString)o+=`        <span class="tk-prop">formatString</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.formatString)}</span>\n`;
   if(v.displayFolder)o+=`        <span class="tk-prop">displayFolder</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.displayFolder)}</span>\n`;
   if(v.isHidden)o+=`        <span class="tk-prop">isHidden</span>\n`;
-  o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   return o.trimEnd();
 }
 function buildDateTable(v){
@@ -341,7 +369,6 @@ function buildDateTable(v){
   if(v.desc)o+=`<span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
   o+=`<span class="tk-kw">table</span> <span class="tk-obj">${esc(q(tName))}</span>\n`;
   if(markDate)o+=`    <span class="tk-prop">isDateTable</span>\n`;
-  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${ltBase}</span>\n`;
   // Core date columns
   const cols=[
     {n:dateCol,       dt:'dateTime', src:dateCol,       summ:'none',  fmt:'dd/MM/yyyy'},
@@ -362,7 +389,6 @@ function buildDateTable(v){
     if(c.fmt)o+=`        <span class="tk-prop">formatString</span><span class="tk-eq">:</span> <span class="tk-str">${c.fmt}</span>\n`;
     o+=`        <span class="tk-prop">summarizeBy</span><span class="tk-eq">:</span> <span class="tk-str">${c.summ}</span>\n`;
     o+=`        <span class="tk-prop">sourceColumn</span><span class="tk-eq">:</span> <span class="tk-str">${esc(c.src)}</span>\n`;
-    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
     o+=`\n        <span class="tk-prop">annotation</span> <span class="tk-obj">SummarizationSetBy</span> <span class="tk-eq">=</span> <span class="tk-str">Automatic</span>\n`;
   });
   // Mark date col sort
@@ -370,12 +396,10 @@ function buildDateTable(v){
   // Date hierarchy
   if(addHier){
     o+=`\n    <span class="tk-kw">hierarchy</span> <span class="tk-obj">'Date Hierarchy'</span>\n`;
-    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
     [{n:'Year',c:'Year'},{n:'Quarter',c:'Quarter'},{n:'Month',c:'Month'},{n:'Day',c:'Day'}].forEach((lv,i)=>{
       o+=`\n        <span class="tk-kw">level</span> <span class="tk-obj">${lv.n}</span>\n`;
       o+=`            <span class="tk-prop">ordinal</span><span class="tk-eq">:</span> <span class="tk-num">${i}</span>\n`;
       o+=`            <span class="tk-prop">column</span><span class="tk-eq">:</span> <span class="tk-str">${lv.c}</span>\n`;
-      o+=`            <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
     });
   }
   // Partition
@@ -394,13 +418,11 @@ function buildHierarchy(v){
   o+=`    <span class="tk-kw">hierarchy</span> <span class="tk-obj">${esc(q(hName))}</span>\n`;
   if(v.displayFolder)o+=`        <span class="tk-prop">displayFolder</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.displayFolder)}</span>\n`;
   if(v.isHidden)o+=`        <span class="tk-prop">isHidden</span>\n`;
-  o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   levels.forEach((lv,i)=>{
     const c=lv.trim();
     o+=`\n        <span class="tk-kw">level</span> <span class="tk-obj">${esc(q(c))}</span>\n`;
     o+=`            <span class="tk-prop">ordinal</span><span class="tk-eq">:</span> <span class="tk-num">${i}</span>\n`;
     o+=`            <span class="tk-prop">column</span><span class="tk-eq">:</span> <span class="tk-str">${esc(q(c))}</span>\n`;
-    o+=`            <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   });
   return o.trimEnd();
 }
@@ -432,7 +454,6 @@ function buildExpression(v){
   let meta=isParam&&kind==='m'?` meta [IsParameterQuery=true, Type="${type}", IsParameterQueryRequired=true]`:'';
   let o=`<span class="tk-kw">expression</span> <span class="tk-obj">${esc(q(eName))}</span> <span class="tk-eq">=</span> <span class="tk-dax">"${esc(val)}"${meta}</span>\n`;
   o+=`    <span class="tk-prop">kind</span><span class="tk-eq">:</span> <span class="tk-str">${kind}</span>\n`;
-  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   if(v.queryGroup)o+=`    <span class="tk-prop">queryGroup</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.queryGroup)}</span>\n`;
   const navStep=v.navStepName||'Navigation';
   const resType=v.resultType||'Text';
@@ -452,7 +473,6 @@ function buildCalcGroup(v){
     o+=`        <span class="tk-prop">dataType</span><span class="tk-eq">:</span> <span class="tk-str">string</span>\n`;
     o+=`        <span class="tk-prop">sourceColumn</span><span class="tk-eq">:</span> <span class="tk-str">Name</span>\n`;
     o+=`        <span class="tk-prop">summarizeBy</span><span class="tk-eq">:</span> <span class="tk-str">none</span>\n`;
-    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   }
   rawItems.forEach((item,idx)=>{
     const parts=item.split('|');if(parts.length<2)return;
@@ -462,7 +482,6 @@ function buildCalcGroup(v){
     if(isML){o+=` <span class="tk-eq">=</span>\n`+iExpr.split('\n').map(l=>`            <span class="tk-dax">${esc(l)}</span>`).join('\n')+'\n';}
     else{o+=` <span class="tk-eq">=</span> <span class="tk-dax">${esc(iExpr)}</span>\n`;}
     o+=`        <span class="tk-prop">ordinal</span><span class="tk-eq">:</span> <span class="tk-num">${idx}</span>\n`;
-    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   });
   return o.trimEnd();
 }
@@ -471,20 +490,23 @@ function buildAggregation(v){
   const mode=v.storageMode||'import';
   const mappings=(v.mappings||'SalesAmount | SalesAmount | sum\nCustomerKey | CustomerKey | groupBy').split('\n').filter(l=>l.trim());
   let o='';
+  // NOTE: This template cannot be deployed as a standalone TMDL file.
+  // The alternateOf section must be part of the aggregation table definition
+  // inside your model's table TMDL file. Copy the column blocks below into the
+  // relevant table file alongside the partition definition.
+  o+=`<span class="tk-cmt">/// NOTE: Aggregation mappings cannot be deployed as a standalone script.\n/// Copy the column + alternateOf blocks into your aggregation table TMDL file.\n/// The alternateOf section maps each agg column back to its detail table column.</span>\n\n`;
   if(v.desc)o+=`<span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
   o+=`<span class="tk-kw">table</span> <span class="tk-obj">${esc(q(aggTable))}</span>\n`;
-  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   o+=`\n    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(aggTable+'-Partition'))}</span> <span class="tk-eq">=</span> <span class="tk-str">m</span>\n`;
   o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
-  o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span> <span class="tk-cmt">// M expression for aggregation table</span>\n`;
-  o+=`\n    <span class="tk-cmt">// Aggregation column mappings</span>\n`;
+  o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span> <span class="tk-cmt">// M expression for aggregation table source</span>\n`;
+  o+=`\n    <span class="tk-cmt">// ── alternateOf column mappings ──────────────────────────</span>\n`;
   mappings.forEach(m=>{
     const p=m.split('|');if(p.length<3)return;
     const aggCol=p[0].trim();const detailCol=p[1].trim();const summ=p[2].trim();
     o+=`\n    <span class="tk-kw">column</span> <span class="tk-obj">${esc(q(aggCol))}</span>\n`;
     o+=`        <span class="tk-prop">dataType</span><span class="tk-eq">:</span> <span class="tk-str">int64</span>\n`;
     o+=`        <span class="tk-prop">summarizeBy</span><span class="tk-eq">:</span> <span class="tk-str">${esc(summ)}</span>\n`;
-    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
     o+=`\n        <span class="tk-kw">alternateOf</span>\n`;
     o+=`            <span class="tk-prop">baseTable</span><span class="tk-eq">:</span> <span class="tk-str">${esc(q(detailTable))}</span>\n`;
     o+=`            <span class="tk-prop">baseColumn</span><span class="tk-eq">:</span> <span class="tk-str">${esc(q(detailCol))}</span>\n`;
@@ -517,7 +539,6 @@ function buildFunction(v){
     o+=` <span class="tk-dax">${esc(expr)}</span>\n`;
   }
   o+=`    <span class="tk-prop">returnType</span><span class="tk-eq">:</span> <span class="tk-str">${retType}</span>\n`;
-  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   return o.trimEnd();
 }
 function buildCulture(v){
@@ -830,7 +851,10 @@ function onTabRename(el, tabId){
 
 function updateCodePreview(tab,type){
   const el=document.getElementById(`code_${tab.id}`);if(!el)return;
-  try{el.innerHTML=type.generate(tab.values);}
+  try{
+    const body=type.generate(tab.values);
+    el.innerHTML=`<span class="tk-kw">createOrReplace</span>\n\n`+body;
+  }
   catch(e){el.textContent='// Error: '+e.message;}
 }
 
