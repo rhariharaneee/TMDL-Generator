@@ -1,29 +1,20 @@
 /* ============================================================
    TMDL Generator  |  app.js
-   No-sidebar layout · dropdown-driven · 16 object types
+   No-sidebar layout · dropdown-driven · 15 object types
    ============================================================ */
 
 // ── Object type registry ──────────────────────────────────────
 const OBJECT_TYPES = [
   {
-    id:'database', label:'Database', icon:'🗄️', color:'#6366F1',
-    badge:'#EEF2FF', badgeText:'#4338CA', desc:'Root database definition',
-    group:'Model',
-    fields:[
-      {id:'dbName',  label:'Database Name',       type:'text',   placeholder:'Sales', required:true},
-      {id:'compat',  label:'Compatibility Level', type:'select', options:['1200','1400','1500','1550','1567'], def:'1567'},
-      {id:'desc',    label:'Description',         type:'text',   placeholder:'Sales semantic model'},
-    ],
-    generate: v => buildDatabase(v),
-  },
-  {
     id:'model', label:'Model', icon:'📐', color:'#0EA5E9',
     badge:'#F0F9FF', badgeText:'#0369A1', desc:'Model-level configuration',
     group:'Model',
     fields:[
-      {id:'culture',     label:'Culture',      type:'select', options:['en-US','en-GB','fr-FR','de-DE','ja-JP','zh-CN','pt-BR','es-ES'], def:'en-US'},
-      {id:'defaultMode', label:'Default Mode', type:'select', options:['import','directQuery','dualMode','push','streaming'], def:'import'},
-      {id:'desc',        label:'Description',  type:'text',   placeholder:'Enterprise data model'},
+      {id:'culture',            label:'Culture',                      type:'select', options:['en-US','en-GB','fr-FR','de-DE','ja-JP','zh-CN','pt-BR','es-ES'], def:'en-US'},
+      {id:'sourceQueryCulture', label:'Source Query Culture',         type:'select', options:['en-US','en-GB','fr-FR','de-DE','ja-JP','zh-CN','pt-BR','es-ES'], def:'en-US'},
+      {id:'defaultMode',        label:'Default Mode',                 type:'select', options:['import','directQuery','dualMode','push','streaming'], def:'import'},
+      {id:'discourageImplicit', label:'Discourage Implicit Measures', type:'toggle', def:true},
+      {id:'desc',               label:'Description',                  type:'text',   placeholder:'Enterprise data model'},
     ],
     generate: v => buildModel(v),
   },
@@ -95,21 +86,20 @@ const OBJECT_TYPES = [
     generate: v => buildCalculatedColumn(v),
   },
   {
-    id:'partition', label:'Partition', icon:'🗂️', color:'#EC4899',
-    badge:'#FDF2F8', badgeText:'#9D174D', desc:'M or DAX partition source',
+  {
+    id:'date_table', label:'Date Table', icon:'📅', color:'#0891B2',
+    badge:'#ECFEFF', badgeText:'#155E75', desc:'Calculated Date dimension table',
     group:'Tables',
     fields:[
-      {id:'tableName',  label:'Parent Table',    type:'text',    placeholder:'Sales', required:true},
-      {id:'partName',   label:'Partition Name',  type:'text',    placeholder:'Sales-Partition', required:true},
-      {id:'sourceType', label:'Source Type',     type:'select',  options:['m','dax','query'], def:'m'},
-      {id:'mode',       label:'Mode',            type:'select',  options:['import','directQuery','dualMode'], def:'import'},
-      {id:'server',     label:'Server (M)',      type:'text',    placeholder:'Server'},
-      {id:'database',   label:'Database (M)',    type:'text',    placeholder:'Database'},
-      {id:'schema',     label:'Schema',          type:'text',    placeholder:'dbo'},
-      {id:'table',      label:'Source Table/View',type:'text',   placeholder:'FactSales'},
-      {id:'daxExpr',    label:'DAX expression (DAX partitions)', type:'textarea', placeholder:"FILTER(ALL('Sales'), 'Sales'[Year] = 2024)"},
+      {id:'tableName',  label:'Table Name',          type:'text',   placeholder:'Date', required:true},
+      {id:'startYear',  label:'Start Year',          type:'text',   placeholder:'2020'},
+      {id:'endYear',    label:'End Year',            type:'text',   placeholder:'2030'},
+      {id:'markAsDate', label:'Mark as Date Table',  type:'toggle', def:true},
+      {id:'dateColName',label:'Date Column Name',    type:'text',   placeholder:'Date'},
+      {id:'addHierarchy',label:'Add Date Hierarchy', type:'toggle', def:true},
+      {id:'desc',       label:'Description',         type:'textarea',placeholder:'Standard date dimension'},
     ],
-    generate: v => buildPartition(v),
+    generate: v => buildDateTable(v),
   },
   {
     id:'hierarchy', label:'Hierarchy', icon:'📈', color:'#F97316',
@@ -159,11 +149,14 @@ const OBJECT_TYPES = [
     badge:'#ECFEFF', badgeText:'#164E63', desc:'Named M expression / parameter',
     group:'Model',
     fields:[
-      {id:'exprName',  label:'Expression Name',     type:'text',   placeholder:'ServerName', required:true},
-      {id:'kind',      label:'Kind',                type:'select', options:['m','dax'], def:'m'},
-      {id:'value',     label:'Value',               type:'text',   placeholder:'localhost', required:true},
-      {id:'isParam',   label:'Is Parameter Query',  type:'toggle', def:true},
-      {id:'paramType', label:'Parameter Type',      type:'select', options:['Text','Number','Binary','Date','DateTime'], def:'Text'},
+      {id:'exprName',    label:'Expression Name',    type:'text',   placeholder:'Databricks_Catalog', required:true},
+      {id:'kind',        label:'Kind',               type:'select', options:['m','dax'], def:'m'},
+      {id:'value',       label:'Value',              type:'text',   placeholder:'salesanalytics', required:true},
+      {id:'isParam',     label:'Is Parameter Query', type:'toggle', def:true},
+      {id:'paramType',   label:'Parameter Type',     type:'select', options:['Text','Number','Binary','Date','DateTime'], def:'Text'},
+      {id:'queryGroup',  label:'Query Group',        type:'text',   placeholder:'dbks_Parameters'},
+      {id:'navStepName', label:'PBI Navigation Step Name', type:'text', placeholder:'Navigation'},
+      {id:'resultType',  label:'PBI Result Type',    type:'select', options:['Text','Number','Binary','Date','DateTime','Table','Record','List'], def:'Text'},
     ],
     generate: v => buildExpression(v),
   },
@@ -198,17 +191,17 @@ const OBJECT_TYPES = [
     generate: v => buildAggregation(v),
   },
   {
-    id:'udf', label:'UDF', icon:'🧩', color:'#9333EA',
-    badge:'#FAF5FF', badgeText:'#6B21A8', desc:'DAX User Defined Function',
+    id:'function', label:'Function', icon:'🧩', color:'#9333EA',
+    badge:'#FAF5FF', badgeText:'#6B21A8', desc:'DAX User Defined Function (UDF)',
     group:'Model',
     fields:[
-      {id:'funcName',   label:'Function Name',      type:'text',    placeholder:'IsWeekend', required:true},
-      {id:'params',     label:'Parameters — Name:Type (comma separated)', type:'text', placeholder:"DateValue:DateTime, Factor:Double"},
-      {id:'returnType', label:'Return Data Type',   type:'select',  options:['boolean','double','decimal','int64','string','dateTime','variant'], def:'boolean'},
-      {id:'expression', label:'DAX Expression',     type:'textarea',placeholder:'VAR dow = WEEKDAY([DateValue], 2)\nRETURN dow >= 6', required:true},
-      {id:'desc',       label:'Description',        type:'textarea',placeholder:'Returns true if the date falls on a weekend'},
+      {id:'funcName',   label:'Function Name',      type:'text',    placeholder:'AddTax', required:true},
+      {id:'params',     label:'Parameters — Name:Type (comma separated)', type:'text', placeholder:"amount:NUMERIC"},
+      {id:'returnType', label:'Return Data Type',   type:'select',  options:['boolean','double','decimal','int64','string','dateTime','NUMERIC','variant'], def:'double'},
+      {id:'expression', label:'DAX Expression',     type:'textarea',placeholder:'amount * 1.1', required:true},
+      {id:'desc',       label:'Description',        type:'textarea',placeholder:'AddTax takes in amount and returns amount including tax'},
     ],
-    generate: v => buildUDF(v),
+    generate: v => buildFunction(v),
   },
   {
     id:'culture', label:'Culture', icon:'🌐', color:'#0284C7',
@@ -245,17 +238,13 @@ function uuidv4(){return'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c
 function stripHTML(h){const d=document.createElement('div');d.innerHTML=h;return d.textContent||d.innerText||''}
 
 // ── TMDL Builders ─────────────────────────────────────────────
-function buildDatabase(v){
-  let o=`<span class="tk-kw">database</span> <span class="tk-obj">${esc(v.dbName||'Database')}</span>\n`;
-  o+=`    <span class="tk-prop">compatibilityLevel</span><span class="tk-eq">:</span> <span class="tk-num">${v.compat||'1567'}</span>\n`;
-  if(v.desc)o+=`    <span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
-  return o.trimEnd();
-}
 function buildModel(v){
   let o=`<span class="tk-kw">model</span> <span class="tk-obj">Model</span>\n`;
   o+=`    <span class="tk-prop">culture</span><span class="tk-eq">:</span> <span class="tk-str">${v.culture||'en-US'}</span>\n`;
   o+=`    <span class="tk-prop">defaultPowerBIDataSourceVersion</span><span class="tk-eq">:</span> <span class="tk-str">powerBI_V3</span>\n`;
+  if(v.discourageImplicit!==false&&v.discourageImplicit!=='false')o+=`    <span class="tk-prop">discourageImplicitMeasures</span>\n`;
   if(v.defaultMode&&v.defaultMode!=='import')o+=`    <span class="tk-prop">defaultMode</span><span class="tk-eq">:</span> <span class="tk-str">${v.defaultMode}</span>\n`;
+  o+=`    <span class="tk-prop">sourceQueryCulture</span><span class="tk-eq">:</span> <span class="tk-str">${v.sourceQueryCulture||'en-US'}</span>\n`;
   if(v.desc)o+=`\n    <span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
   return o.trimEnd();
 }
@@ -319,6 +308,7 @@ function buildColumn(v){
   if(v.isHidden)o+=`        <span class="tk-prop">isHidden</span>\n`;
   if(v.isKey)o+=`        <span class="tk-prop">isKey</span>\n`;
   o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
+  o+=`\n        <span class="tk-prop">annotation</span> <span class="tk-obj">SummarizationSetBy</span> <span class="tk-eq">=</span> <span class="tk-str">Automatic</span>\n`;
   return o.trimEnd();
 }
 function buildCalculatedColumn(v){
@@ -340,34 +330,60 @@ function buildCalculatedColumn(v){
   o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
   return o.trimEnd();
 }
-function buildPartition(v){
-  const tName=v.tableName||'Sales';const pName=v.partName||'Sales-Partition';
-  const type=v.sourceType||'m';const mode=v.mode||'import';
-  const srv=v.server||'Server';const db=v.database||'Database';
-  const schm=v.schema||'dbo';const tbl=v.table||'FactSales';
-  let o=`<span class="tk-kw">table</span> <span class="tk-obj">${esc(q(tName))}</span>\n\n`;
-  if(type==='m'){
-    o+=`    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(pName))}</span> <span class="tk-eq">=</span> <span class="tk-str">m</span>\n`;
-    o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
-    o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span>\n`;
-    o+=`            <span class="tk-dax">let\n                Source = Sql.Database(${esc(srv)}, ${esc(db)}),\n                Schema = Source{[Name="${esc(schm)}"]}[Data],\n                ${esc(tbl)} = Schema{[Name="${esc(tbl)}"]}[Data]\n            in\n                ${esc(tbl)}</span>\n`;
-  }else if(type==='dax'){
-    const dax=(v.daxExpr||"FILTER(ALL('Table'), TRUE())").trim();
-    const isML=dax.includes('\n')||dax.length>60;
-    o+=`    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(pName))}</span> <span class="tk-eq">=</span> <span class="tk-str">dax</span>\n`;
-    o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
-    if(isML){
-      o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span>\n`;
-      o+=dax.split('\n').map(l=>`                <span class="tk-dax">${esc(l)}</span>`).join('\n')+'\n';
-    }else{
-      o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span> <span class="tk-dax">${esc(dax)}</span>\n`;
-    }
-  }else{
-    o+=`    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(pName))}</span> <span class="tk-eq">=</span> <span class="tk-str">query</span>\n`;
-    o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
-    o+=`        <span class="tk-prop">query</span> <span class="tk-eq">=</span> <span class="tk-dax">SELECT * FROM ${esc(schm)}.${esc(tbl)}</span>\n`;
-    o+=`        <span class="tk-prop">dataSource</span><span class="tk-eq">:</span> <span class="tk-str">SqlServer</span>\n`;
+function buildDateTable(v){
+  const tName=v.tableName||'Date';
+  const dateCol=v.dateColName||'Date';
+  const startY=v.startYear||'2020';
+  const endY=v.endYear||'2030';
+  const markDate=v.markAsDate!==false&&v.markAsDate!=='false';
+  const addHier=v.addHierarchy!==false&&v.addHierarchy!=='false';
+  const ltBase=uuidv4();
+  let o='';
+  if(v.desc)o+=`<span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
+  o+=`<span class="tk-kw">table</span> <span class="tk-obj">${esc(q(tName))}</span>\n`;
+  if(markDate)o+=`    <span class="tk-prop">isDateTable</span>\n`;
+  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${ltBase}</span>\n`;
+  // Core date columns
+  const cols=[
+    {n:dateCol,       dt:'dateTime', src:dateCol,       summ:'none',  fmt:'dd/MM/yyyy'},
+    {n:'Year',        dt:'int64',    src:'Year',        summ:'none'},
+    {n:'YearMonth',   dt:'string',   src:'YearMonth',   summ:'none'},
+    {n:'Quarter',     dt:'string',   src:'Quarter',     summ:'none'},
+    {n:'QuarterNo',   dt:'int64',    src:'QuarterNo',   summ:'none'},
+    {n:'Month',       dt:'string',   src:'Month',       summ:'none'},
+    {n:'MonthNo',     dt:'int64',    src:'MonthNo',     summ:'none'},
+    {n:'Day',         dt:'int64',    src:'Day',         summ:'none'},
+    {n:'Weekday',     dt:'string',   src:'Weekday',     summ:'none'},
+    {n:'IsWeekend',   dt:'boolean',  src:'IsWeekend',   summ:'none'},
+    {n:'IsCurrentYear',dt:'boolean', src:'IsCurrentYear',summ:'none'},
+  ];
+  cols.forEach(c=>{
+    o+=`\n    <span class="tk-kw">column</span> <span class="tk-obj">${esc(q(c.n))}</span>\n`;
+    o+=`        <span class="tk-prop">dataType</span><span class="tk-eq">:</span> <span class="tk-str">${c.dt}</span>\n`;
+    if(c.fmt)o+=`        <span class="tk-prop">formatString</span><span class="tk-eq">:</span> <span class="tk-str">${c.fmt}</span>\n`;
+    o+=`        <span class="tk-prop">summarizeBy</span><span class="tk-eq">:</span> <span class="tk-str">${c.summ}</span>\n`;
+    o+=`        <span class="tk-prop">sourceColumn</span><span class="tk-eq">:</span> <span class="tk-str">${esc(c.src)}</span>\n`;
+    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
+    o+=`\n        <span class="tk-prop">annotation</span> <span class="tk-obj">SummarizationSetBy</span> <span class="tk-eq">=</span> <span class="tk-str">Automatic</span>\n`;
+  });
+  // Mark date col sort
+  o+=`\n    <span class="tk-cmt">/// Sort Month by MonthNo, Weekday by WeekdayNo</span>\n`;
+  // Date hierarchy
+  if(addHier){
+    o+=`\n    <span class="tk-kw">hierarchy</span> <span class="tk-obj">'Date Hierarchy'</span>\n`;
+    o+=`        <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
+    [{n:'Year',c:'Year'},{n:'Quarter',c:'Quarter'},{n:'Month',c:'Month'},{n:'Day',c:'Day'}].forEach((lv,i)=>{
+      o+=`\n        <span class="tk-kw">level</span> <span class="tk-obj">${lv.n}</span>\n`;
+      o+=`            <span class="tk-prop">ordinal</span><span class="tk-eq">:</span> <span class="tk-num">${i}</span>\n`;
+      o+=`            <span class="tk-prop">column</span><span class="tk-eq">:</span> <span class="tk-str">${lv.c}</span>\n`;
+      o+=`            <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
+    });
   }
+  // Partition
+  o+=`\n    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(tName))}</span> <span class="tk-eq">=</span> <span class="tk-str">calculated</span>\n`;
+  o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">import</span>\n`;
+  o+=`        <span class="tk-prop">source</span> <span class="tk-eq">=</span>\n`;
+  o+=`            <span class="tk-dax">CALENDAR(DATE(${startY},1,1), DATE(${endY},12,31))</span>\n`;
   return o.trimEnd();
 }
 function buildHierarchy(v){
@@ -411,13 +427,18 @@ function buildRole(v){
   return o.trimEnd();
 }
 function buildExpression(v){
-  const eName=v.exprName||'ServerName';const kind=v.kind||'m';
-  const val=v.value||'localhost';const type=v.paramType||'Text';
+  const eName=v.exprName||'Databricks_Catalog';const kind=v.kind||'m';
+  const val=v.value||'salesanalytics';const type=v.paramType||'Text';
   const isParam=v.isParam!==false&&v.isParam!=='false';
   let meta=isParam&&kind==='m'?` meta [IsParameterQuery=true, Type="${type}", IsParameterQueryRequired=true]`:'';
   let o=`<span class="tk-kw">expression</span> <span class="tk-obj">${esc(q(eName))}</span> <span class="tk-eq">=</span> <span class="tk-dax">"${esc(val)}"${meta}</span>\n`;
   o+=`    <span class="tk-prop">kind</span><span class="tk-eq">:</span> <span class="tk-str">${kind}</span>\n`;
-  if(isParam)o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
+  o+=`    <span class="tk-prop">lineageTag</span><span class="tk-eq">:</span> <span class="tk-str">${uuidv4()}</span>\n`;
+  if(v.queryGroup)o+=`    <span class="tk-prop">queryGroup</span><span class="tk-eq">:</span> <span class="tk-str">${esc(v.queryGroup)}</span>\n`;
+  const navStep=v.navStepName||'Navigation';
+  const resType=v.resultType||'Text';
+  o+=`\n    <span class="tk-prop">annotation</span> <span class="tk-obj">PBI_NavigationStepName</span> <span class="tk-eq">=</span> <span class="tk-str">${esc(navStep)}</span>\n`;
+  o+=`\n    <span class="tk-prop">annotation</span> <span class="tk-obj">PBI_ResultType</span> <span class="tk-eq">=</span> <span class="tk-str">${esc(resType)}</span>\n`;
   return o.trimEnd();
 }
 function buildCalcGroup(v){
@@ -472,27 +493,27 @@ function buildAggregation(v){
   });
   return o.trimEnd();
 }
-function buildUDF(v){
-  const fn=v.funcName||'MyFunction';
-  const expr=(v.expression||'RETURN TRUE()').trim();
-  const retType=v.returnType||'boolean';
+function buildFunction(v){
+  const fn=v.funcName||'AddTax';
+  const expr=(v.expression||'amount * 1.1').trim();
+  const retType=v.returnType||'double';
   const params=(v.params||'').split(',').map(p=>p.trim()).filter(Boolean);
   const isML=expr.includes('\n')||expr.length>60;
   let o='';
   if(v.desc)o+=`<span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
-  o+=`<span class="tk-kw">function</span> <span class="tk-obj">${esc(q(fn))}</span>`;
   if(params.length){
-    o+=` (<span class="tk-dax">`;
-    o+=params.map(p=>{
-      const parts=p.split(':');const pn=parts[0].trim();const pt=parts[1]?parts[1].trim():'Any';
-      return `${esc(pn)}: ${esc(pt)}`;
-    }).join(', ');
-    o+=`</span>)`;
+    o+=`<span class="tk-kw">function</span> <span class="tk-obj">${esc(q(fn))}</span> = (\n`;
+    params.forEach((p,i)=>{
+      const parts=p.split(':');const pn=parts[0].trim();const pt=parts[1]?parts[1].trim():'NUMERIC';
+      const comma=i<params.length-1?',':'';
+      o+=`        <span class="tk-dax">${esc(pn)} : ${esc(pt)}${comma}</span>\n`;
+    });
+    o+=`    ) =>\n`;
+  }else{
+    o+=`<span class="tk-kw">function</span> <span class="tk-obj">${esc(q(fn))}</span> <span class="tk-eq">=</span>`;
   }
-  o+=` <span class="tk-eq">=</span>`;
-  if(isML){
-    o+=`\n`;
-    o+=expr.split('\n').map(l=>`        <span class="tk-dax">${esc(l)}</span>`).join('\n')+'\n';
+  if(params.length||isML){
+    o+=expr.split('\n').map(l=>`    <span class="tk-dax">${esc(l)}</span>`).join('\n')+'\n';
   }else{
     o+=` <span class="tk-dax">${esc(expr)}</span>\n`;
   }
