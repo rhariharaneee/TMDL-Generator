@@ -2,7 +2,9 @@
 
 A browser-based tool for generating [Tabular Model Definition Language (TMDL)](https://learn.microsoft.com/en-us/analysis-services/tmdl/tmdl-overview) templates for Power BI / Analysis Services semantic models.
 
-🌐 **Live app:** [https://rhariharaneee.github.io](https://rhariharaneee.github.io)
+🌐 **Live app:**
+- [https://rhariharaneee.github.io](https://rhariharaneee.github.io)
+- [https://rhariharaneee.github.io/TMDL-Generator](https://rhariharaneee.github.io/TMDL-Generator)
 
 ---
 
