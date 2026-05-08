@@ -737,7 +737,10 @@ function updateCodePreview(){
   if(!el) return;
   const type = OBJECT_TYPES.find(o=>o.id===state.typeId);
   try{
-    el.innerHTML = `<span class="tk-kw">createOrReplace</span>\n\n` + type.generate(state.values);
+    const body = type.generate(state.values);
+    // Indent entire object block one level under createOrReplace (TMDL spec)
+    const indented = body.split('\n').map(l => l.length ? '    '+l : l).join('\n');
+    el.innerHTML = `<span class="tk-kw">createOrReplace</span>\n\n` + indented;
   } catch(e){ el.textContent = '// Error: '+e.message; }
 }
 

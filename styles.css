@@ -79,6 +79,7 @@ input,textarea,select{font:inherit}
 }
 .author-link svg{flex-shrink:0;color:#0A66C2}
 .author-link:hover{background:#d0eaf8;transform:translateY(-1px)}
+.author-label{font-size:11.5px;font-weight:500;color:var(--c-muted);letter-spacing:.01em}
 
 /* ── Tabs ──────────────────────────────────────── */
 .tabs-list{display:flex;align-items:flex-end;gap:2px}
