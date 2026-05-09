@@ -272,7 +272,7 @@ function buildTable(v){
   } else if(connector==='Databricks'){
     const cat=db||'salesanalytics'; const sch=schema||'dbo'; const tbl=p[p.length-1]||tName;
     const srvParam=srv||'Databricks_Server'; const pathParam=httpPath||'Databricks_Path';
-    mQuery=`let\n                Source = Databricks.Catalogs(${esc(srvParam)}, ${esc(pathParam)}, [Catalog=null, Database=null, EnableAutomaticProxyDiscovery=null]),\n                Catalog = Source{[Name="${esc(cat)}",Kind="Database"]}[Data],\n                Schema = Catalog{[Name="${esc(sch)}",Kind="Schema"]}[Data],\n                Table = Schema{[Name="${esc(tbl)}",Kind="Table"]}[Data]\n            \n            in\n                Table`;
+    mQuery=`let\n                Source = Databricks.Catalogs("${esc(srvParam)}", "${esc(pathParam)}", [Catalog=null, Database=null, EnableAutomaticProxyDiscovery=null]),\n                Catalog = Source{[Name="${esc(cat)}",Kind="Database"]}[Data],\n                Schema = Catalog{[Name="${esc(sch)}",Kind="Schema"]}[Data],\n                Table = Schema{[Name="${esc(tbl)}",Kind="Table"]}[Data]\n            \n            in\n                Table`;
   } else if(connector==='PostgreSQL'){
     const schm=p.length>1?p[0]:schema; const tbl=p.length>1?p[1]:src;
     mQuery=`let\n                Source = PostgreSQL.Database("${esc(srv)}", "${esc(db)}"),\n                Navigation = Source{[Schema="${esc(schm)}",Item="${esc(tbl)}"]}[Data]\n            in\n                Navigation`;
@@ -299,7 +299,7 @@ function buildTable(v){
   if(v.desc)o+=`<span class="tk-cmt">/// ${esc(v.desc)}</span>\n`;
   o+=`<span class="tk-kw">table</span> <span class="tk-obj">${esc(q(tName))}</span>\n`;
   if(v.isHidden)o+=`    <span class="tk-prop">isHidden</span>\n`;
-  o+=`\n    <span class="tk-kw">column</span> <span class="tk-obj">Column1</span>\n`;
+  o+=`\n    <span class="tk-kw">column</span> <span class="tk-obj">Column1</span>\n        <span class="tk-prop">dataType</span><span class="tk-eq">:</span> <span class="tk-str">int64</span>\n`;
   o+=`\n    <span class="tk-kw">partition</span> <span class="tk-obj">${esc(q(pName))}</span> <span class="tk-eq">=</span> <span class="tk-str">m</span>\n`;
   o+=`        <span class="tk-prop">mode</span><span class="tk-eq">:</span> <span class="tk-str">${mode}</span>\n`;
   if(connector==='Databricks'&&queryGroup)o+=`        <span class="tk-prop">queryGroup</span><span class="tk-eq">:</span> <span class="tk-str">'${esc(queryGroup)}'</span>\n`;
